@@ -1,20 +1,9 @@
-/**
- * Domain types.
- *
- * These types are the single source of truth for shape across the app.
- * They intentionally live outside of any framework or storage concern
- * so they can be reused when the mock hooks are swapped for Supabase.
- */
-
 export type ID = string;
 export type ISODateString = string;
 
 export type Theme = "light" | "dark" | "system";
-
 export type Priority = "low" | "medium" | "high" | "urgent";
-
 export type Frequency = "once" | "daily" | "weekly" | "monthly" | "yearly";
-
 export type TaskStatus = "pending" | "in_progress" | "completed" | "archived";
 
 export interface Task {
@@ -59,18 +48,12 @@ export interface RankingEntry {
 }
 
 export interface Statistics {
-  totals: {
-    tasks: number;
-    completed: number;
-    active: number;
-    overdue: number;
-  };
-  completionRate: number; // 0..1
+  totals: { tasks: number; completed: number; active: number; overdue: number };
+  completionRate: number;
   weeklyTrend: Array<{ label: string; value: number }>;
   byPriority: Record<Priority, number>;
 }
 
-/** Async data envelope used by every data hook. */
 export interface AsyncResource<T> {
   data: T | undefined;
   isLoading: boolean;
