@@ -5,6 +5,7 @@ export type Theme = "light" | "dark" | "system";
 export type Priority = "low" | "medium" | "high" | "urgent";
 export type Frequency = "once" | "daily" | "weekly" | "monthly" | "yearly";
 export type TaskStatus = "pending" | "in_progress" | "completed" | "archived";
+export type TaskLogResult = "completed" | "failed";
 
 export interface Task {
   id: ID;
@@ -13,11 +14,24 @@ export interface Task {
   priority: Priority;
   frequency: Frequency;
   status: TaskStatus;
+  startDate: ISODateString;
+  targetDayOfWeek?: number; // 0 = domingo, 6 = sábado (só pra weekly)
   dueDate?: ISODateString;
   createdAt: ISODateString;
   updatedAt: ISODateString;
   points: number;
   tags: string[];
+}
+
+export interface TaskLog {
+  id: ID;
+  taskId: ID;
+  date: string; // YYYY-MM-DD
+  result: TaskLogResult | null;
+  pointsEarned: number | null;
+  lastDeadlineCheck: string | null; // YYYY-MM-DD
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
 }
 
 export interface User {
@@ -60,4 +74,12 @@ export interface AsyncResource<T> {
   isError: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
+}
+
+export interface DailyEfficiency {
+  date: string; // YYYY-MM-DD
+  efficiency: number | null; // 0-100, null se não tiver nenhum registro
+  completed: number;
+  failed: number;
+  total: number;
 }

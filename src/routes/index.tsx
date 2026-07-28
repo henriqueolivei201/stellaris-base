@@ -17,6 +17,9 @@ import { ActionButton } from "@/components/common/action-button";
 import { useTasks } from "@/hooks/use-tasks";
 import { useScore } from "@/hooks/use-score";
 import { useStatistics } from "@/hooks/use-statistics";
+import { CreateTaskForm } from "@/components/forms/create-task-form";
+import { useUpdateTask } from "@/hooks/use-update-task";
+
 
 export const Route = createFileRoute("/")({
   component: DashboardPage,
@@ -26,6 +29,7 @@ function DashboardPage() {
   const tasks = useTasks();
   const score = useScore();
   const stats = useStatistics();
+  const taskActions = useUpdateTask(() => void tasks.refetch());
 
   return (
     <AppShell>
@@ -34,7 +38,7 @@ function DashboardPage() {
           eyebrow="Overview"
           title="Dashboard"
           description="A snapshot of your day — focus, momentum and next actions."
-          actions={<ActionButton leadingIcon={<Sparkles className="size-4" />}>New task</ActionButton>}
+          
         />
 
         <div className="flex flex-col gap-8">
@@ -75,6 +79,7 @@ function DashboardPage() {
             description="Your prioritised list — plan, then execute."
           >
             <ContentCard>
+              <CreateTaskForm onSuccess={() => void tasks.refetch()} />
               {tasks.isLoading ? (
                 <LoadingState rows={4} />
               ) : tasks.isError ? (
@@ -90,6 +95,7 @@ function DashboardPage() {
               ) : (
                 <ul className="divide-y divide-border">
                   {tasks.data.map((task) => (
+
                     <li
                       key={task.id}
                       className="flex items-center justify-between gap-4 py-3"
@@ -107,6 +113,27 @@ function DashboardPage() {
                       <div className="flex shrink-0 items-center gap-2">
                         <PriorityBadge priority={task.priority} />
                         <StatusBadge status={task.status} />
+                        <button
+                          className="text-xs text-green-500 hover:underline disabled:opacity-50"
+                          disabled={task.status === 'completed' || taskActions.isLoading}
+                          onClick={() => void taskActions.updateStatus(task.id, 'completed')}
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="text-xs text-yellow-500 hover:underline disabled:opacity-50"
+                          disabled={task.status === 'pending' || taskActions.isLoading}
+                          onClick={() => void taskActions.updateStatus(task.id, 'pending')}
+                        >
+                          ↩
+                        </button>
+                        <button
+                          className="text-xs text-red-500 hover:underline disabled:opacity-50"
+                          disabled={taskActions.isLoading}
+                          onClick={() => void taskActions.deleteTask(task.id)}
+                        >
+                          🗑
+                        </button>
                       </div>
                     </li>
                   ))}
