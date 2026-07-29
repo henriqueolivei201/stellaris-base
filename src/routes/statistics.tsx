@@ -1,16 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Section } from "@/components/layout/section";
-import { MetricCard } from "@/components/cards/metric-card";
-import { ContentCard } from "@/components/cards/content-card";
-import { ResponsiveGrid } from "@/components/common/responsive-grid";
 import { LoadingState } from "@/components/common/loading-state";
 import { ErrorState } from "@/components/common/error-state";
 import { EmptyState } from "@/components/common/empty-state";
-import { useStatistics } from "@/hooks/use-statistics";
+import { TaskLineChart } from "@/components/statistics/line-chart";
+import { useTasks } from "@/hooks/use-tasks";
+import { useAllTaskLogs } from "@/hooks/use-all-task-logs";
+import {
+  buildOverallEfficiencySeries,
+  buildTaskSeries,
+} from "@/lib/statistics-logic";
 
 export const Route = createFileRoute("/statistics")({
   head: () => ({
@@ -23,7 +27,27 @@ export const Route = createFileRoute("/statistics")({
 });
 
 function StatisticsPage() {
-  const { data, isLoading, isError, error, refetch } = useStatistics();
+  const tasksResource = useTasks();
+  const logsResource = useAllTaskLogs();
+
+  const isLoading = tasksResource.isLoading || logsResource.isLoading;
+  const isError = tasksResource.isError || logsResource.isError;
+
+  const overallSeries = useMemo(
+    () => buildOverallEfficiencySeries(
+      logsResource.data ?? [],
+      tasksResource.data ?? [],
+    ),
+    [logsResource.data, tasksResource.data],
+  );
+
+  const taskSeries = useMemo(
+    () => (tasksResource.data ?? []).map((task) => ({
+      task,
+      series: buildTaskSeries(logsResource.data ?? [], task.id),
+    })).filter((t) => t.series.length > 0),
+    [logsResource.data, tasksResource.data],
+  );
 
   return (
     <AppShell>
@@ -31,42 +55,52 @@ function StatisticsPage() {
         <PageHeader
           eyebrow="Insights"
           title="Statistics"
-          description="Aggregated performance — charts are intentionally deferred."
+          description="Sua evolução ao longo do tempo."
         />
 
         {isLoading ? (
           <LoadingState rows={4} />
         ) : isError ? (
-          <ErrorState description={error?.message} onRetry={() => void refetch()} />
-        ) : !data ? (
-          <EmptyState title="No data" />
+          <ErrorState
+            description={tasksResource.error?.message ?? logsResource.error?.message}
+            onRetry={() => {
+              void tasksResource.refetch();
+              void logsResource.refetch();
+            }}
+          />
+        ) : overallSeries.length === 0 && taskSeries.length === 0 ? (
+          <EmptyState
+            title="Nenhum dado ainda"
+            description="Registre tarefas no calendário para ver sua evolução aqui."
+          />
         ) : (
-          <div className="flex flex-col gap-8">
-            <ResponsiveGrid base={2} sm={2} lg={4}>
-              <MetricCard label="Total" value={data.totals.tasks} />
-              <MetricCard label="Completed" value={data.totals.completed} delta={5} />
-              <MetricCard label="Active" value={data.totals.active} />
-              <MetricCard label="Overdue" value={data.totals.overdue} delta={-2} />
-            </ResponsiveGrid>
+          <div className="flex flex-col gap-6">
+            {/* Gráfico geral */}
+            {overallSeries.length > 0 && (
+              <Section title="Eficiência Geral" description="Média diária de todas as tarefas registradas">
+                <TaskLineChart
+                  title="Eficiência geral"
+                  series={overallSeries}
+                  valueType="efficiency"
+                />
+              </Section>
+            )}
 
-            <Section title="Weekly trend" description="Completed tasks per day">
-              <ContentCard>
-                <ul className="grid grid-cols-7 gap-2">
-                  {data.weeklyTrend.map((d) => (
-                    <li key={d.label} className="flex flex-col items-center gap-2">
-                      <div className="flex h-24 w-full items-end rounded-md bg-muted/60 p-1">
-                        <div
-                          className="w-full rounded-sm bg-primary/80 transition-all duration-300 ease-in-out"
-                          style={{ height: `${(d.value / 8) * 100}%` }}
-                          aria-label={`${d.label}: ${d.value}`}
-                        />
-                      </div>
-                      <span className="text-[11px] text-muted-foreground">{d.label}</span>
-                    </li>
+            {/* Gráficos por tarefa */}
+            {taskSeries.length > 0 && (
+              <Section title="Por tarefa" description="Histórico individual de cada tarefa">
+                <div className="flex flex-col gap-4">
+                  {taskSeries.map(({ task, series }) => (
+                    <TaskLineChart
+                      key={task.id}
+                      title={task.title}
+                      series={series}
+                      valueType="binary"
+                    />
                   ))}
-                </ul>
-              </ContentCard>
-            </Section>
+                </div>
+              </Section>
+            )}
           </div>
         )}
       </PageContainer>
