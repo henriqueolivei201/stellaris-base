@@ -47,7 +47,7 @@ function ScorePage() {
               <MetricCard label="Streak" value={`${data.streakDays}d`} delta={0} />
             </ResponsiveGrid>
 
-            <Section title={`Level ${data.level}`} description="Progress to next level">
+            <Section title={`Nível ${data.level} — ${data.category}`} description="Progresso para o próximo nível">
               <ContentCard>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">

@@ -1,4 +1,4 @@
-import type { Task, TaskLog, DailyEfficiency } from "@/types";
+import type { Task, TaskLog, DailyEfficiency} from "@/types";
 
 // ─── Helpers de data ──────────────────────────────────────────────────────────
 
@@ -20,6 +20,7 @@ function getDayOfWeek(date: string): number {
 // ─── Tarefa aparece no dia? ───────────────────────────────────────────────────
 
 export function taskAppearsOnDate(task: Task, date: string): boolean {
+  if (task.status === "completed" || task.status === "archived") return false;
   if (task.frequency === "weekly") {
     return getDayOfWeek(date) === task.targetDayOfWeek;
   }
@@ -56,10 +57,20 @@ export function isDeadlineDate(task: Task, date: string): boolean {
 
 // ─── Filtra tarefas que aparecem numa data específica ────────────────────────
 
-export function getTasksForDate(tasks: Task[], date: string): Task[] {
-  return tasks.filter((task) => taskAppearsOnDate(task, date));
-}
+export function getTasksForDate(tasks: Task[], date: string, logs?: TaskLog[]): Task[] {
+  const normalTasks = tasks.filter((task) => taskAppearsOnDate(task, date));
+  const onceDone = (logs ?? [])
+    .filter((log) => log.date === date && log.result !== null)
+    .map((log) => tasks.find((t) => t.id === log.taskId))
+    .filter((task): task is Task => 
+      task !== undefined && 
+      task.frequency === "once" && 
+      (task.status === "completed" || task.status === "archived")
+    )
+    .filter((task) => !normalTasks.some((t) => t.id === task.id)); // evita duplicatas
 
+  return [...normalTasks, ...onceDone];
+}
 // ─── Calcula eficiência diária a partir dos logs de um dia ───────────────────
 
 export function calculateDailyEfficiency(
@@ -70,9 +81,7 @@ export function calculateDailyEfficiency(
   const relevant = logs.filter((log) => {
     if (log.result === null) return false;
     const task = tasks.find((t) => t.id === log.taskId);
-    if (!task) return false;
-    // Mensais e anuais só contam no dia do prazo
-    if (task.frequency === "monthly" || task.frequency === "yearly") {
+    if (task && (task.frequency === "monthly" || task.frequency === "yearly")) {
       return isDeadlineDate(task, date);
     }
     return true;

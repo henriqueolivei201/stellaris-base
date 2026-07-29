@@ -11,10 +11,8 @@ import { EmptyState } from "@/components/common/empty-state";
 import { TaskLineChart } from "@/components/statistics/line-chart";
 import { useTasks } from "@/hooks/use-tasks";
 import { useAllTaskLogs } from "@/hooks/use-all-task-logs";
-import {
-  buildOverallEfficiencySeries,
-  buildTaskSeries,
-} from "@/lib/statistics-logic";
+import { buildOverallEfficiencySeries, buildTaskSeries, buildOnceSeries } from "@/lib/statistics-logic";
+
 
 export const Route = createFileRoute("/statistics")({
   head: () => ({
@@ -41,11 +39,23 @@ function StatisticsPage() {
     [logsResource.data, tasksResource.data],
   );
 
+
   const taskSeries = useMemo(
-    () => (tasksResource.data ?? []).map((task) => ({
-      task,
-      series: buildTaskSeries(logsResource.data ?? [], task.id),
-    })).filter((t) => t.series.length > 0),
+    () => (tasksResource.data ?? [])
+      .filter((task) => task.frequency !== "once")
+      .map((task) => ({
+        task,
+        series: buildTaskSeries(logsResource.data ?? [], task.id),
+      }))
+      .filter((t) => t.series.length > 0),
+    [logsResource.data, tasksResource.data],
+  );
+
+  const onceSeries = useMemo(
+    () => buildOnceSeries(
+      logsResource.data ?? [],
+      (tasksResource.data ?? []).filter((t) => t.frequency === "once"),
+    ),
     [logsResource.data, tasksResource.data],
   );
 
@@ -68,7 +78,7 @@ function StatisticsPage() {
               void logsResource.refetch();
             }}
           />
-        ) : overallSeries.length === 0 && taskSeries.length === 0 ? (
+        ) : overallSeries.length === 0 && taskSeries.length === 0 && onceSeries.length === 0 ? (
           <EmptyState
             title="Nenhum dado ainda"
             description="Registre tarefas no calendário para ver sua evolução aqui."
@@ -82,6 +92,17 @@ function StatisticsPage() {
                   title="Eficiência geral"
                   series={overallSeries}
                   valueType="efficiency"
+                />
+              </Section>
+            )}
+
+            {/* Tarefas únicas */}
+            {onceSeries.length > 0 && (
+              <Section title="Tarefas únicas" description="Conclusões de tarefas once ao longo do tempo">
+                <TaskLineChart
+                  title="Tarefas únicas"
+                  series={onceSeries}
+                  valueType="count"
                 />
               </Section>
             )}

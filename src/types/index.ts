@@ -83,3 +83,16 @@ export interface DailyEfficiency {
   failed: number;
   total: number;
 }
+
+export type ScoreCategory = "Iniciante" | "Aprendiz" | "Dedicado" | "Experiente" | "Mestre" | "Lendário";
+
+export interface Score {
+  userId: ID;
+  total: number;
+  level: number;
+  category: ScoreCategory;
+  weekly: number;
+  monthly: number;
+  streakDays: number;
+  nextLevelAt: number;
+}

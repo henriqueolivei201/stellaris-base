@@ -50,3 +50,22 @@ export function buildTaskSeries(logs: TaskLog[], taskId: string): SeriesPoint[] 
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((l) => ({ date: l.date, value: l.result === "completed" ? 1 : 0 }));
 }
+
+export function buildOnceSeries(logs: TaskLog[], onceTasks: Task[]): SeriesPoint[] {
+  const onceIds = new Set(onceTasks.map((t) => t.id));
+
+  const byDate = new Map<string, number>();
+  for (const log of logs) {
+    if (!onceIds.has(log.taskId) || log.result === null) continue;
+    if (log.result === "completed") {
+      byDate.set(log.date, (byDate.get(log.date) ?? 0) + 1);
+    } else {
+      // failed — garante que o dia aparece mas não incrementa
+      if (!byDate.has(log.date)) byDate.set(log.date, 0);
+    }
+  }
+
+  return Array.from(byDate.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, value]) => ({ date, value }));
+}

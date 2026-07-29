@@ -60,7 +60,7 @@ const emptyForm: FormState = {
 function TasksPage() {
   const { data, isLoading, isError, error, refetch } = useTasks();
   const { createTask, isLoading: isCreating } = useCreateTask(() => void refetch());
-  const { deleteTask, isLoading: isDeleting } = useUpdateTask(() => void refetch());
+  const { updateTask, deleteTask, isLoading: isUpdating } = useUpdateTask(() => void refetch());
 
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -92,14 +92,20 @@ function TasksPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.title.trim()) return;
-    await createTask({
-      ...form,
-      targetDayOfWeek: form.frequency === "weekly" ? form.targetDayOfWeek : undefined,
-    });
-    setShowForm(false);
-    setForm(emptyForm);
+  if (!form.title.trim()) return;
+  const input = {
+    ...form,
+    targetDayOfWeek: form.frequency === "weekly" ? form.targetDayOfWeek : undefined,
   };
+  if (editingTask) {
+    await updateTask(editingTask.id, input);
+  } else {
+    await createTask(input);
+  }
+  setShowForm(false);
+  setForm(emptyForm);
+  setEditingTask(null);
+};
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this task?")) return;
@@ -259,7 +265,7 @@ function TasksPage() {
                             <button
                               className="text-muted-foreground hover:text-red-500 disabled:opacity-50"
                               onClick={() => void handleDelete(task.id)}
-                              disabled={isDeleting}
+                              disabled={isCreating || isUpdating || !form.title.trim()}
                             >
                               <Trash2 className="size-4" />
                             </button>

@@ -11,7 +11,7 @@ import { useTasks } from "@/hooks/use-tasks";
 import { useTaskLogs } from "@/hooks/use-task-logs";
 import { DayModal } from "@/components/calendar/day-modal";
 import { calculateDailyEfficiency, efficiencyToColor } from "@/lib/calendar-logic";
-import type { TaskLog } from "@/types";
+import type { Task, TaskLog } from "@/types";
 
 export const Route = createFileRoute("/calendar")({
   head: () => ({
@@ -42,6 +42,13 @@ function CalendarPage() {
 
   const tasksResource = useTasks();
   const logsResource = useTaskLogs(month, year);
+
+  const [modalTasks, setModalTasks] = useState<Task[]>([]);
+
+  const handleOpenDay = (date: string) => {
+    setModalTasks(tasksResource.data ?? []);
+    setSelectedDate(date);
+  };
 
   const goPrevMonth = () => {
     if (month === 1) { setMonth(12); setYear((y) => y - 1); }
@@ -150,7 +157,7 @@ function CalendarPage() {
                   return (
                     <button
                       key={cell.date}
-                      onClick={() => cell.date <= todayStr ? setSelectedDate(cell.date) : undefined}
+                      onClick={() => cell.date <= todayStr ? handleOpenDay(cell.date) : undefined}
                       disabled={cell.date > todayStr}
                       className="aspect-square rounded-md border border-border flex items-center justify-center text-sm transition disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-80"
                       style={{
@@ -172,8 +179,11 @@ function CalendarPage() {
             date={selectedDate}
             tasks={tasksResource.data ?? []}
             logs={logsResource.data ?? []}
-            onClose={() => setSelectedDate(null)}
             onChanged={() => void logsResource.refetch()}
+            onClose={() => {
+              void tasksResource.refetch();
+              setSelectedDate(null);
+            }}
           />
         )}
       </PageContainer>
