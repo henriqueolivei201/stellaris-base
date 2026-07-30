@@ -16,7 +16,9 @@ import { PriorityBadge } from "@/components/common/priority-badge";
 import { ActionButton } from "@/components/common/action-button";
 import { useTasks } from "@/hooks/use-tasks";
 import { useScore } from "@/hooks/use-score";
-import { useStatistics } from "@/hooks/use-statistics";
+import { useTaskLogs } from "@/hooks/use-task-logs";
+import { calculateDailyEfficiency } from "@/lib/calendar-logic";
+import { useMemo, useEffect } from "react";
 import { CreateTaskForm } from "@/components/forms/create-task-form";
 import { useUpdateTask } from "@/hooks/use-update-task";
 
@@ -26,10 +28,42 @@ export const Route = createFileRoute("/")({
 });
 
 function DashboardPage() {
-  const tasks = useTasks();
-  const score = useScore();
-  const stats = useStatistics();
-  const taskActions = useUpdateTask(() => void tasks.refetch());
+const today = new Date();
+const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+const tasks = useTasks();
+const score = useScore();
+const logs = useTaskLogs(today.getMonth() + 1, today.getFullYear());
+const taskActions = useUpdateTask(() => void tasks.refetch());
+
+const todayLogs = useMemo(
+  () => (logs.data ?? []).filter((l) => l.date === todayStr),
+  [logs.data, todayStr],
+);
+
+const todayEfficiency = useMemo(
+  () => calculateDailyEfficiency(todayLogs, tasks.data ?? [], todayStr),
+  [todayLogs, tasks.data, todayStr],
+);
+
+const activeTasks = useMemo(
+  () => (tasks.data ?? []).filter(
+    (t) => t.status === "pending" || t.status === "in_progress"
+  ).length,
+  [tasks.data],
+);
+
+useEffect(() => {
+  const handleFocus = () => {
+    void tasks.refetch();
+    void logs.refetch();
+    void score.refetch();
+  };
+  window.addEventListener("focus", handleFocus);
+  return () => window.removeEventListener("focus", handleFocus);
+}, []);
+
+ 
 
   return (
     <AppShell>
@@ -52,17 +86,13 @@ function DashboardPage() {
             />
             <MetricCard
               label="Completion"
-              value={
-                stats.data
-                  ? `${Math.round(stats.data.completionRate * 100)}%`
-                  : "—"
-              }
+             value={todayEfficiency.efficiency !== null ? `${todayEfficiency.efficiency}%` : "—"}
               delta={2}
               icon={<CheckCircle2 className="size-4" />}
             />
             <MetricCard
               label="Active tasks"
-              value={stats.data?.totals.active ?? "—"}
+              value={activeTasks}
               delta={-1}
               icon={<Activity className="size-4" />}
             />
