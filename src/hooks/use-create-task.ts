@@ -10,7 +10,7 @@ type CreateTaskInput = {
   frequency: Frequency;
   points?: number;
   tags?: string[];
-  targetDayOfWeek?: number; 
+  targetDayOfWeek?: number;
 };
 
 type UseCreateTask = {
@@ -26,19 +26,22 @@ export function useCreateTask(onSuccess?: () => void): UseCreateTask {
   const createTask = async (input: CreateTaskInput): Promise<Task> => {
     setIsLoading(true);
     setError(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Usuário não autenticado");
 
-   const { data, error } = await supabase
-  .from("tasks")
-  .insert({
-    title: input.title,
-    description: input.description,
-    priority: input.priority,
-    frequency: input.frequency,
-    points: calculatePoints(input.frequency, input.priority),
-    tags: input.tags ?? [],
-    status: "pending",
-    target_day_of_week: input.targetDayOfWeek ?? null, 
-  })
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({
+        user_id: user.id,
+        title: input.title,
+        description: input.description,
+        priority: input.priority,
+        frequency: input.frequency,
+        points: calculatePoints(input.frequency, input.priority),
+        tags: input.tags ?? [],
+        status: "pending",
+        target_day_of_week: input.targetDayOfWeek ?? null,
+      })
       .select()
       .single();
 

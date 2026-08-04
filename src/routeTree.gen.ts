@@ -13,6 +13,7 @@ import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as StatisticsRouteImport } from './routes/statistics'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScoreRouteImport } from './routes/score'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as HallOfFameRouteImport } from './routes/hall-of-fame'
 import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as IndexRouteImport } from './routes/index'
@@ -37,6 +38,11 @@ const ScoreRoute = ScoreRouteImport.update({
   path: '/score',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HallOfFameRoute = HallOfFameRouteImport.update({
   id: '/hall-of-fame',
   path: '/hall-of-fame',
@@ -57,6 +63,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/hall-of-fame': typeof HallOfFameRoute
+  '/login': typeof LoginRoute
   '/score': typeof ScoreRoute
   '/settings': typeof SettingsRoute
   '/statistics': typeof StatisticsRoute
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/hall-of-fame': typeof HallOfFameRoute
+  '/login': typeof LoginRoute
   '/score': typeof ScoreRoute
   '/settings': typeof SettingsRoute
   '/statistics': typeof StatisticsRoute
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/calendar': typeof CalendarRoute
   '/hall-of-fame': typeof HallOfFameRoute
+  '/login': typeof LoginRoute
   '/score': typeof ScoreRoute
   '/settings': typeof SettingsRoute
   '/statistics': typeof StatisticsRoute
@@ -87,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/hall-of-fame'
+    | '/login'
     | '/score'
     | '/settings'
     | '/statistics'
@@ -96,6 +106,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/hall-of-fame'
+    | '/login'
     | '/score'
     | '/settings'
     | '/statistics'
@@ -105,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/calendar'
     | '/hall-of-fame'
+    | '/login'
     | '/score'
     | '/settings'
     | '/statistics'
@@ -115,6 +127,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CalendarRoute: typeof CalendarRoute
   HallOfFameRoute: typeof HallOfFameRoute
+  LoginRoute: typeof LoginRoute
   ScoreRoute: typeof ScoreRoute
   SettingsRoute: typeof SettingsRoute
   StatisticsRoute: typeof StatisticsRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScoreRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/hall-of-fame': {
       id: '/hall-of-fame'
       path: '/hall-of-fame'
@@ -179,6 +199,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CalendarRoute: CalendarRoute,
   HallOfFameRoute: HallOfFameRoute,
+  LoginRoute: LoginRoute,
   ScoreRoute: ScoreRoute,
   SettingsRoute: SettingsRoute,
   StatisticsRoute: StatisticsRoute,

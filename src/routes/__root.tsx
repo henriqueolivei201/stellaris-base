@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ThemeProvider } from "@/contexts/theme-provider";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { useNavigate, useLocation } from "@tanstack/react-router";
 
 function NotFoundComponent() {
   return (
@@ -36,6 +38,27 @@ function NotFoundComponent() {
   );
 }
 
+function AuthGuard({ children }: { children: ReactNode }) {
+  const { session, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !session && location.pathname !== "/login") {
+      void navigate({ to: "/login" });
+    }
+  }, [session, isLoading, location.pathname]);
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Carregando...</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
@@ -142,8 +165,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <AuthProvider>
+          <AuthGuard>
+            <Outlet />
+          </AuthGuard>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
