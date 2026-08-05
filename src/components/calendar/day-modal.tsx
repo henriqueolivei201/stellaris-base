@@ -26,8 +26,6 @@ export function DayModal({ date, tasks, logs, onClose, onChanged }: Props) {
     () => getTasksForDate(tasks, date, logsForDay),
     [tasks, date, logsForDay]
   );
-  
-
   // Estado local — espelho dos logs existentes, editável sem chamar Supabase
   const [localResults, setLocalResults] = useState<Record<string, LocalResult>>(() => {
     const map: Record<string, LocalResult> = {};
@@ -55,6 +53,7 @@ export function DayModal({ date, tasks, logs, onClose, onChanged }: Props) {
       ...tasksForDay.map((t) => t.id),
       ...logsForDay.map((l) => l.taskId),
     ]);
+  
 
     const pending = Array.from(allTaskIds).map((taskId) => {
       const task = tasks.find((t) => t.id === taskId)!;
@@ -84,6 +83,9 @@ export function DayModal({ date, tasks, logs, onClose, onChanged }: Props) {
   );
 
   const efficiencyColor = efficiencyToColor(efficiency.efficiency);
+  const hasYearlyCompleted = tasksForDay.some(
+  (task) => task.frequency === "yearly" && localResults[task.id] === "completed"
+);
 
   const groupedTasks = useMemo(() => {
     return FREQUENCY_ORDER.map((freq) => ({
@@ -95,7 +97,15 @@ export function DayModal({ date, tasks, logs, onClose, onChanged }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-xl bg-background border border-border p-4 flex flex-col gap-4">
+      {/* Banner conquista anual */}
+        {hasYearlyCompleted && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+            🏆 Você está prestes a eternizar uma grande conquista — clique em <strong>Concluir</strong> para registrá-la no Hall of Fame.
+          </div>
+        )}
 
+        {/* Ações */}
+        <div className="flex gap-2 pt-2"></div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium">
@@ -135,6 +145,7 @@ export function DayModal({ date, tasks, logs, onClose, onChanged }: Props) {
             className="flex flex-col gap-4 max-h-96 overflow-y-auto"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
           >
+            
             {groupedTasks.map((group) => (
               <div key={group.frequency} className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
@@ -146,6 +157,7 @@ export function DayModal({ date, tasks, logs, onClose, onChanged }: Props) {
                     const result = getLocalResult(task.id);
                     const isCompleted = result === "completed";
                     const isFailed = result === "failed";
+                    
 
                     return (
                       <li

@@ -1,29 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { Section } from "@/components/layout/section";
 import { ContentCard } from "@/components/cards/content-card";
 import { ActionButton } from "@/components/common/action-button";
 import { EmptyState } from "@/components/common/empty-state";
 import { LoadingState } from "@/components/common/loading-state";
 import { ErrorState } from "@/components/common/error-state";
 import { PriorityBadge } from "@/components/common/priority-badge";
-import { StatusBadge } from "@/components/common/status-badge";
-import { FrequencyBadge } from "@/components/common/frequency-badge";
 import { useTasks } from "@/hooks/use-tasks";
 import { useCreateTask } from "@/hooks/use-create-task";
-import { useUpdateTask } from "@/hooks/use-update-task";
-import type { Task, Priority, Frequency } from "@/types";
+import type { Frequency, Priority, Task } from "@/types";
 
 export const Route = createFileRoute("/tasks")({
   head: () => ({
     meta: [
       { title: "Tasks — Atlas" },
-      { name: "description", content: "Register and manage your tasks." },
+      { name: "description", content: "Todas as suas tarefas." },
     ],
   }),
   component: TasksPage,
@@ -31,14 +27,29 @@ export const Route = createFileRoute("/tasks")({
 
 const FREQUENCY_ORDER: Frequency[] = ["once", "daily", "weekly", "monthly", "yearly"];
 
+const FREQUENCY_CONFIG: Record<Frequency, { label: string; color: string; description: string }> = {
+  once:    { label: "Once",    color: "#6b7280", description: "Tarefas únicas" },
+  daily:   { label: "Daily",   color: "#3b82f6", description: "Repetição diária" },
+  weekly:  { label: "Weekly",  color: "#8b5cf6", description: "Repetição semanal" },
+  monthly: { label: "Monthly", color: "#f97316", description: "Repetição mensal" },
+  yearly:  { label: "Yearly",  color: "#eab308", description: "Grandes metas anuais" },
+};
+
+const PRIORITY_BORDER: Record<Priority, string> = {
+  low:    "#6b7280",
+  medium: "#3b82f6",
+  high:   "#f97316",
+  urgent: "#ef4444",
+};
+
 const WEEKDAY_OPTIONS = [
   { label: "Domingo", value: 0 },
   { label: "Segunda", value: 1 },
-  { label: "Terça", value: 2 },
-  { label: "Quarta", value: 3 },
-  { label: "Quinta", value: 4 },
-  { label: "Sexta", value: 5 },
-  { label: "Sábado", value: 6 },
+  { label: "Terça",   value: 2 },
+  { label: "Quarta",  value: 3 },
+  { label: "Quinta",  value: 4 },
+  { label: "Sexta",   value: 5 },
+  { label: "Sábado",  value: 6 },
 ];
 
 type FormState = {
@@ -57,93 +68,134 @@ const emptyForm: FormState = {
   targetDayOfWeek: new Date().getDay(),
 };
 
+function TaskCard({ task }: { task: Task }) {
+  const borderColor = PRIORITY_BORDER[task.priority];
+
+  return (
+    <div
+      className="flex items-center justify-between gap-4 rounded-lg bg-card px-4 py-3 transition hover:brightness-110"
+      style={{
+        borderLeft: `3px solid ${borderColor}`,
+        boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${borderColor} 15%, transparent)`,
+      }}
+    >
+      <div className="min-w-0 flex flex-col gap-0.5">
+        <p className="truncate text-sm font-medium">{task.title}</p>
+        {task.description && (
+          <p className="truncate text-xs text-muted-foreground">{task.description}</p>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <span
+          className="text-xs font-medium tabular-nums"
+          style={{ color: borderColor }}
+        >
+          +{task.points}pts
+        </span>
+        <PriorityBadge priority={task.priority} />
+      </div>
+    </div>
+  );
+}
+
+function FrequencyGroup({ frequency, tasks }: { frequency: Frequency; tasks: Task[] }) {
+  const config = FREQUENCY_CONFIG[frequency];
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Header do grupo */}
+      <div className="flex items-center gap-3">
+        <div
+          className="flex items-center gap-2 rounded-full px-3 py-1"
+          style={{
+            backgroundColor: `${config.color}18`,
+            border: `1px solid ${config.color}33`,
+          }}
+        >
+          <span
+            className="size-1.5 rounded-full"
+            style={{ backgroundColor: config.color }}
+          />
+          <span className="text-xs font-semibold" style={{ color: config.color }}>
+            {config.label}
+          </span>
+          <span className="text-xs" style={{ color: `${config.color}99` }}>
+            {tasks.length}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">{config.description}</p>
+        <div className="flex-1 h-px" style={{ backgroundColor: `${config.color}22` }} />
+      </div>
+
+      {/* Tarefas */}
+      <div className="flex flex-col gap-2 pl-2">
+        {tasks.map((task) => (
+          <TaskCard key={task.id} task={task} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TasksPage() {
   const { data, isLoading, isError, error, refetch } = useTasks();
   const { createTask, isLoading: isCreating } = useCreateTask(() => void refetch());
-  const { updateTask, deleteTask, isLoading: isUpdating } = useUpdateTask(() => void refetch());
 
   const [showForm, setShowForm] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
   const groupedTasks = useMemo(() => {
     return FREQUENCY_ORDER.map((freq) => ({
       frequency: freq,
-      tasks: (data ?? []).filter((t) => t.frequency === freq),
+      tasks: (data ?? []).filter(
+        (t) => t.frequency === freq && t.status !== "archived"
+      ),
     })).filter((g) => g.tasks.length > 0);
   }, [data]);
 
-  const openCreate = () => {
-    setEditingTask(null);
-    setForm(emptyForm);
-    setShowForm(true);
-  };
-
-  const openEdit = (task: Task) => {
-    setEditingTask(task);
-    setForm({
-      title: task.title,
-      description: task.description ?? "",
-      priority: task.priority,
-      frequency: task.frequency,
-      targetDayOfWeek: task.targetDayOfWeek ?? new Date().getDay(),
-    });
-    setShowForm(true);
-  };
+  const totalTasks = (data ?? []).filter((t) => t.status !== "archived").length;
 
   const handleSubmit = async () => {
-  if (!form.title.trim()) return;
-  const input = {
-    ...form,
-    targetDayOfWeek: form.frequency === "weekly" ? form.targetDayOfWeek : undefined,
-  };
-  if (editingTask) {
-    await updateTask(editingTask.id, input);
-  } else {
-    await createTask(input);
-  }
-  setShowForm(false);
-  setForm(emptyForm);
-  setEditingTask(null);
-};
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this task?")) return;
-    await deleteTask(id);
+    if (!form.title.trim()) return;
+    await createTask({
+      ...form,
+      targetDayOfWeek: form.frequency === "weekly" ? form.targetDayOfWeek : undefined,
+    });
+    setShowForm(false);
+    setForm(emptyForm);
   };
 
   return (
     <AppShell>
       <PageContainer>
         <PageHeader
-          eyebrow="Workspace"
-          title="Task registration"
-          description="Capture, prioritise and track everything in one focused surface."
+          eyebrow="Catálogo"
+          title="Tasks"
+          description="Todas as suas tarefas organizadas por frequência."
           actions={
             <ActionButton
               leadingIcon={<Plus className="size-4" />}
-              onClick={openCreate}
+              onClick={() => setShowForm((v) => !v)}
             >
-              New task
+              Nova tarefa
             </ActionButton>
           }
         />
 
+        {/* Formulário de criação */}
         {showForm && (
           <ContentCard>
             <div className="flex flex-col gap-4 p-4">
-              <p className="text-sm font-medium">
-                {editingTask ? "Edit task" : "New task"}
-              </p>
+              <p className="text-sm font-medium">Nova tarefa</p>
               <input
                 className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                placeholder="Title"
+                placeholder="Título"
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               />
               <input
                 className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                placeholder="Description (optional)"
+                placeholder="Descrição (opcional)"
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
@@ -177,14 +229,10 @@ function TasksPage() {
                   <select
                     className="rounded-md border border-border bg-background px-3 py-2 text-sm"
                     value={form.targetDayOfWeek}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, targetDayOfWeek: Number(e.target.value) }))
-                    }
+                    onChange={(e) => setForm((f) => ({ ...f, targetDayOfWeek: Number(e.target.value) }))}
                   >
                     {WEEKDAY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>
@@ -193,92 +241,51 @@ function TasksPage() {
               <div className="flex gap-2">
                 <button
                   className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                  onClick={handleSubmit}
+                  onClick={() => void handleSubmit()}
                   disabled={isCreating || !form.title.trim()}
                 >
-                  {isCreating ? "Saving..." : "Save"}
+                  {isCreating ? "Salvando..." : "Criar"}
                 </button>
                 <button
                   className="rounded-md border border-border px-4 py-2 text-sm"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => { setShowForm(false); setForm(emptyForm); }}
                 >
-                  Cancel
+                  Cancelar
                 </button>
               </div>
             </div>
           </ContentCard>
         )}
 
-        <Section title="All tasks" description="Your registered tasks.">
-          <ContentCard>
-            {isLoading ? (
-              <LoadingState rows={6} />
-            ) : isError ? (
-              <ErrorState description={error?.message} onRetry={() => void refetch()} />
-            ) : !data || data.length === 0 ? (
-              <EmptyState
-                title="No tasks yet"
-                description="Register a task to see it appear here."
-                action={
-                  <ActionButton
-                    leadingIcon={<Plus className="size-4" />}
-                    onClick={openCreate}
-                  >
-                    New task
-                  </ActionButton>
-                }
+        {/* Lista */}
+        {isLoading ? (
+          <LoadingState rows={6} />
+        ) : isError ? (
+          <ErrorState description={error?.message} onRetry={() => void refetch()} />
+        ) : !data || totalTasks === 0 ? (
+          <EmptyState
+            title="Nenhuma tarefa ainda"
+            description="Crie sua primeira tarefa para vê-la aqui."
+            action={
+              <ActionButton
+                leadingIcon={<Plus className="size-4" />}
+                onClick={() => setShowForm(true)}
+              >
+                Nova tarefa
+              </ActionButton>
+            }
+          />
+        ) : (
+          <div className="flex flex-col gap-8">
+            {groupedTasks.map((group) => (
+              <FrequencyGroup
+                key={group.frequency}
+                frequency={group.frequency}
+                tasks={group.tasks}
               />
-            ) : (
-              <div className="flex flex-col gap-6 p-2">
-                {groupedTasks.map((group) => (
-                  <div key={group.frequency} className="flex flex-col gap-2">
-                    {/* Header do grupo */}
-                    <div className="flex items-center gap-2">
-                      <FrequencyBadge frequency={group.frequency} />
-                      <div className="flex-1 h-px bg-border" />
-                    </div>
-
-                    {/* Tarefas do grupo */}
-                    <ul className="divide-y divide-border">
-                      {group.tasks.map((task) => (
-                        <li
-                          key={task.id}
-                          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3"
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">{task.title}</p>
-                            {task.description ? (
-                              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                                {task.description}
-                              </p>
-                            ) : null}
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <PriorityBadge priority={task.priority} />
-                            <StatusBadge status={task.status} />
-                            <button
-                              className="text-muted-foreground hover:text-foreground"
-                              onClick={() => openEdit(task)}
-                            >
-                              <Pencil className="size-4" />
-                            </button>
-                            <button
-                              className="text-muted-foreground hover:text-red-500 disabled:opacity-50"
-                              onClick={() => void handleDelete(task.id)}
-                              disabled={isCreating || isUpdating || !form.title.trim()}
-                            >
-                              <Trash2 className="size-4" />
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ContentCard>
-        </Section>
+            ))}
+          </div>
+        )}
       </PageContainer>
     </AppShell>
   );

@@ -61,7 +61,16 @@ export function useUpdateTaskLog(onSuccess?: () => void): UseUpdateTaskLog {
           .eq("id", task.id);
         if (error) { setError(new Error(error.message)); setIsLoading(false); return; }
       }
+      if (task.frequency === "yearly" && result === "completed") {
+        const { error } = await supabase
+          .from("tasks")
+          .update({ status: "completed", updated_at: new Date().toISOString() })
+          .eq("id", task.id);
+        if (error) { setError(new Error(error.message)); setIsLoading(false); return; }
+      }
     }
+
+
 
     setIsLoading(false);
     onSuccess?.();

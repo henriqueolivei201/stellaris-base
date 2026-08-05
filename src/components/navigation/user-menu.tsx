@@ -1,5 +1,5 @@
 import { LogOut, Settings, User as UserIcon } from "lucide-react";
-
+import { useAuth } from "@/contexts/auth-context";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,7 @@ function initialsOf(name: string): string {
 
 export function UserMenu() {
   const { data: user } = useUser();
+  const { signOut } = useAuth();
 
   return (
     <DropdownMenu>
@@ -56,7 +57,10 @@ export function UserMenu() {
           <Settings className="mr-2 size-4" /> Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => void signOut()}
+        >
           <LogOut className="mr-2 size-4" /> Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
